@@ -11,74 +11,91 @@ enum BTreeError : ErrorType {
     case MaximumChildNodes
 }
 
-typealias Key = Comparable
-
-protocol BTreeRootNodeish {
-
-}
-
-class BTreeNode<Key> {
-    let bTree: BTree<Key>
-    var keys: [Key]
-
-    required init(bTree: BTree<Key>, keys: [Key]) {
-        self.bTree = bTree
-        self.keys = keys
-    }
-}
-
-class BTreeLeafNode<Key> : BTreeNode<Key> {
-
-    required init(parent: BTreeNode<Key>, keys: [Key]) throws {
-        let maxKeys = bTree.order - 1
-        guard keys.count >= maxKeys / 2 else {
-            throw BTreeError.MinimumKeys
-        }
-        guard keys.count <= maxKeys else {
-            throw BTreeError.MaximumKeys
-        }
-
-        super.init(bTree: parent.bTree, keys: keys)
-        self.parent = parent
-        self.keys = keys
-    }
-}
-
-class BTreeInternalNode<Key> : BTreeLeafNode<Key> {
-    var childNodes: [BTreeNode]?
-
-    required init(parent: BTreeNode<Key>, keys: [Key], childNodes: [BTreeNode<Key>]) throws {
-        guard keys.count == childNodes.count - 1 else {
-            throw BTreeError.MinimumChildNodes
-        }
-        guard childNodes.count >= bTree.order / 2 else {
-            throw BTreeError.MinimumChildNodes
-        }
-        guard childNodes.count <= bTree.order else {
-            throw BTreeError.MaximumChildNodes
-        }
-
-        super.init(bTree: parent.bTree)
-        self.parent = parent
-        self.keys = keys
-        self.childNodes = childNodes
-    }
-}
-
-class BTreeRootNode<Key> : BTreeNode<Key> {
-}
-
-class BTree<Key> {
+public class BTreeNode<T: Comparable> {
     let order: Int
-    let root: BTreeNode<Key>
+    var parent: BTreeNode? // No parent for the root node
+    var keys: [T]
+    var childNodes: [BTreeNode<T>] // Empty child nodes for leaf nodes
 
-    init(order: Int) throws {
-        guard order > 2 else {
+    required public init?(order: Int) throws {
+        guard order >= 2 else {
             throw BTreeError.BadOrder
         }
+        self.parent = nil
         self.order = order
-        self.root = BTreeNode(bTree: self, keys: [Key]())
+        self.keys = [T]()
+        self.childNodes = [BTreeNode<T>]()
+    }
+
+    internal init(parent: BTreeNode) {
+        self.parent = parent
+        self.order = parent.order
+        self.keys = [T]()
+        self.childNodes = [BTreeNode<T>]()
+    }
+
+    func isRoot() -> Bool {
+        return parent == nil
+    }
+
+    func isLeaf() -> Bool {
+        return childNodes.count == 0
+    }
+
+    func indexOfKey(key: T) -> Int? {
+        for index in keys.indices {
+            if keys[index] == key {
+                return index
+            }
+        }
+        return nil
+    }
+
+    func rightIndexOfKey(key: T) -> Int {
+        for index in keys.indices {
+            if keys[index] > key {
+                return index
+            }
+        }
+        return keys.count
+    }
+    
+    func shiftKeysFromIndex(fromIndex: Int) {
+        for index in keys.indices.endIndex.stride(to: fromIndex, by: -1) {
+            keys[index] = keys[index-1]
+        }
+    }
+    
+    func searchLeaf(key: T) -> BTreeNode {
+        if isLeaf() {
+            return self
+        }
+
+        // No leaf
+        return childNodes[rightIndexOfKey(key)].searchLeaf(key)
+    }
+
+    public func addKeyToTree(key: T) {
+        let insertLeaf = searchLeaf(key)
+        insertLeaf.addKeyToNode(key)
+    }
+    
+    internal func addKeyToNode(key: T) {
+        // insert key
+        let insertIndex = rightIndexOfKey(key)
+        shiftKeysFromIndex(insertIndex)
+        keys[insertIndex] = key
+        
+        // check if node is past max
+        let maxKeys = order - 1
+        if keys.count >= maxKeys {
+            // leaf at max, split up
+            let medianIndex = keys.count / 2
+            let medianKey = keys[medianIndex]
+            if parent == nil {
+                parent = try! BTreeNode(order: order)
+            }
+            parent!.addKeyToNode(medianKey)
+        }
     }
 }
-
-
