@@ -18,13 +18,14 @@ public class BTreeNode<T: Comparable> {
     var childNodes: [BTreeNode<T>] // Empty child nodes for leaf nodes
 
     required public init?(order: Int) throws {
-        guard order >= 2 else {
-            throw BTreeError.BadOrder
-        }
         self.parent = nil
         self.order = order
         self.keys = [T]()
         self.childNodes = [BTreeNode<T>]()
+
+        guard order >= 2 else {
+            throw BTreeError.BadOrder
+        }
     }
 
     internal init(parent: BTreeNode) {
@@ -99,3 +100,13 @@ public class BTreeNode<T: Comparable> {
         }
     }
 }
+
+let tree = try! BTreeNode<Int>(order: 7)!
+
+for key in 1...1000 {
+    tree.addKeyToTree(key)
+}
+
+
+
+
