@@ -198,24 +198,31 @@ public class BTreeNode<KeyType: Comparable> : CustomStringConvertible {
 let max = 200000
 let order = 4
 let tree1 = try! BTree<Int>(order: order)!
+let date1 = NSDate()
 
 for _ in 1...max {
     let key = random() % max
     tree1.addKey(key)
 }
+let interval1 = -date1.timeIntervalSinceNow
+
 print("==== Tree 1 (random add pattern) ====")
 print("average keys per node: \(tree1.averageKeysPerNode())")
 print("tree height: \(tree1.height())")
-
+print("time: \(interval1)")
 
 let tree2 = try! BTree<Int>(order: order)!
+let date2 = NSDate()
 
 for key in 1...max {
     tree2.addKey(key)
 }
+let interval2 = -date2.timeIntervalSinceNow
+
 print("==== Tree 2 (sequential add pattern) ====")
 print("average keys per node: \(tree2.averageKeysPerNode())")
 print("tree height: \(tree2.height())")
+print("time: \(interval2)")
 
 
 
