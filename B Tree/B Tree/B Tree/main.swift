@@ -36,6 +36,10 @@ public class BTree<KeyType: Comparable> : CustomStringConvertible {
         insertLeaf.addKey(key)
     }
     
+    public func deleteKey(key: KeyType) {
+        root!.deleteKey(key)
+    }
+    
     public func averageKeysPerNode() -> Float {
         return Float(root!.numberOfKeys()) / Float(root!.numberOfNodes())
     }
@@ -132,7 +136,7 @@ public class BTreeNode<KeyType: Comparable> : CustomStringConvertible {
         let maxKeys = bTree.order - 1
         if keys.count > maxKeys {
             // node at max, split up
-
+            
             let medianIndex = (bTree.order - 1) / 2
             let medianKey = keys[medianIndex]
             
@@ -158,10 +162,10 @@ public class BTreeNode<KeyType: Comparable> : CustomStringConvertible {
                 childNodes.removeRange(medianIndex + 1...childNodes.count - 1)
             }
             
-             // median key goes to the parent with the new node on the right hand side
+            // median key goes to the parent with the new node on the right hand side
             parent!.addKey(medianKey, rightChildNode: newNode)
         }
-
+        
         assert(childNodes.count <= bTree.order)
         assert(keys.count < bTree.order)
         if !isLeaf() {
@@ -172,6 +176,92 @@ public class BTreeNode<KeyType: Comparable> : CustomStringConvertible {
         }
         if isInternal() {
             assert(childNodes.count >= bTree.order / 2)
+        }
+    }
+    
+    func searchNode(key: KeyType) -> (node: BTreeNode<KeyType>, index: Int)? {
+        for index in keys.indices {
+            if keys[index] == key { return (node: self, index: index) }
+            if isLeaf() { return nil }
+            if keys[index] > key {
+                return childNodes[index].searchNode(key)
+            }
+        }
+        return childNodes[keys.count].searchNode(key)
+    }
+    
+    internal func parentIndex(node: BTreeNode<KeyType>) -> Int? {
+        guard parent != nil else {
+            return nil
+        }
+        for index in parent!.childNodes.indices {
+            let childNode = parent!.childNodes[index]
+            if childNode === node {
+                return index
+            }
+        }
+        return nil
+        
+        //        Did not work:
+        //        return try! parent?.childNodes.indexOf(node)
+    }
+    
+    internal func rebalanceFromNode(node: BTreeNode<KeyType>) {
+        if keys.count < bTree.order / 2 {
+            // imbalanced
+            if let index = parentIndex(node) {
+                if index > 0 {
+                    // step 1: check sibling to the left
+                    let leftSibling = parent!.childNodes[index - 1]
+                    if leftSibling.keys.count > bTree.order / 2 {
+                        // get right element from left sibling into current node
+                        
+                        let rightKey = leftSibling.keys.last!
+                        let rightChild = leftSibling.childNodes.last!
+                        
+                        node.keys.insert(parent!.keys[index], atIndex: 0)
+                        node.childNodes.insert(rightChild, atIndex: 0)
+                        
+                        parent!.keys[index] = rightKey
+                        
+                        leftSibling.keys.removeLast()
+                        leftSibling.childNodes.removeLast()
+                    }
+                } else if index < parent!.childNodes.count - 1 {
+                    // step 2: check sibling to the right
+                    let rightSibling = parent!.childNodes[index + 1]
+                    if rightSibling.keys.count > bTree.order / 2 {
+                        // get left element from right sibling into current node
+                        
+                        let leftKey = rightSibling.keys.first!
+                        let leftChild = rightSibling.childNodes.first!
+                        
+                        node.keys.append(parent!.keys[index])
+                        node.childNodes.append(leftChild)
+                        
+                        parent!.keys[index] = leftKey
+                        
+                        rightSibling.keys.removeFirst()
+                        rightSibling.childNodes.removeFirst()
+                    }
+                } else {
+                    // step 3: merge left and right sibling
+                    /// TODO
+                }
+            }
+        }
+    }
+    
+    public func deleteKey(key: KeyType) {
+        if let found = self.searchNode(key) {
+            if found.node.isLeaf() {
+                found.node.keys.removeAtIndex(found.index)
+                found.node.rebalanceFromNode(found.node)
+            } else if found.node.isInternal() {
+                found.node.keys[found.index] = found.node.childNodes[found.index].keys.last!
+                found.node.childNodes[found.index].keys.removeLast()
+                found.node.rebalanceFromNode(found.node.childNodes[found.index])
+            }
         }
     }
     
@@ -217,6 +307,5 @@ print("==== Tree 2 (sequential add pattern) ====")
 print("average keys per node: \(tree2.averageKeysPerNode())")
 print("tree height: \(tree2.height())")
 
-
-
+tree2.deleteKey(max / 2)
 
